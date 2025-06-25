@@ -32,8 +32,6 @@ async function getTopTracks(
   timeRange: "short_term" | "medium_term" | "long_term" = "short_term",
   limit: number = 10
 ) {
-  console.log("getting top tracks");
-
   try {
     const response = await axios.get(`${SPOTIFY_BASE_URL}/me/top/tracks`, {
       headers: {
@@ -55,6 +53,38 @@ async function getTopTracks(
 
     return result;
   } catch (error: any) {
+    if (error.response?.status === 401) {
+      console.warn("Access token expired. Refreshing...");
+
+      try {
+        const newAccessToken = await refreshAccessToken();
+
+        const retryResponse = await axios.get(
+          `${SPOTIFY_BASE_URL}/me/top/tracks`,
+          {
+            headers: {
+              Authorization: `Bearer ${newAccessToken}`,
+            },
+            params: {
+              time_range: timeRange,
+              limit,
+            },
+          }
+        );
+
+        return retryResponse.data.items.map((track: SpotifyTrack) => ({
+          trackName: track.name,
+          artistName: track.album.artists[0].name,
+          albumName: track.album.name,
+          durationMs: track.duration_ms,
+          trackId: track.id,
+        }));
+      } catch (refreshError: any) {
+        console.error("Failed after token refresh:", refreshError.message);
+        return Promise.reject(refreshError);
+      }
+    }
+
     if (error.response) {
       console.error("Spotify API Error:", {
         status: error.response.status,

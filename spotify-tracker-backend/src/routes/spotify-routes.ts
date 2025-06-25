@@ -1,24 +1,52 @@
 import express, { Request, Response } from "express";
-import { getRecentlyPlayed } from "../services/spotifyService";
+import { getRecentlyPlayed, getTopTracks } from "../services/spotifyService";
 
 const app = express.Router();
 
-app.get("/", async (req: Request, res: Response) => {
-  const limit = parseInt(req.query.limit as string) || 10;
-  let accessToken = req.headers.authorization?.split(" ")[1];
-
+function getAccessToken(res: Response): string | undefined {
+  const accessToken = process.env.SPOTIFY_ACCESS_TOKEN as string;
   if (!accessToken) {
-    res.status(400).json({ error: "Access token is required." });
+    res
+      .status(500)
+      .json({ error: "Server misconfiguration: access token missing." });
+
     return;
   }
+  return accessToken;
+}
 
-  console.log("Access token:", accessToken);
+app.get("/recently-played", async (req: Request, res: Response) => {
+  const limit = parseInt(req.query.limit as string) || 10;
+  const accessToken = getAccessToken(res);
+
+  if (!accessToken) return;
 
   try {
     const recentlyPlayedTracks = await getRecentlyPlayed(accessToken, limit);
     res.json(recentlyPlayedTracks);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch recently played tracks." });
+  }
+});
+
+app.get("/top-tracks", async (req: Request, res: Response) => {
+  const rawTimeRange = req.query.timeRange as string;
+  const validTimeRanges = ["short_term", "medium_term", "long_term"];
+
+  const timeRange = validTimeRanges.includes(rawTimeRange)
+    ? (rawTimeRange as "short_term" | "medium_term" | "long_term")
+    : "short_term";
+
+  const limit = parseInt(req.query.limit as string) || 10;
+  const accessToken = getAccessToken(res) as string;
+
+  if (!accessToken) return;
+
+  try {
+    const topTracks = await getTopTracks(accessToken, timeRange, limit);
+    res.json(topTracks);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch top tracks." });
   }
 });
 
