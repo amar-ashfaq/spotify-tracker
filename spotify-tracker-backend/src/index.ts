@@ -6,6 +6,7 @@ import express, { Request, Response } from "express";
 import trackRoutes from "./routes/tracks";
 import trackStatsRoutes from "./routes/trackStats";
 import spotifyRoutes from "./routes/spotify-routes";
+import analyticsRoutes from "./routes/analytics-routes";
 import cors from "cors";
 
 console.log("MONGO_URI:", process.env.MONGO_URI);
@@ -35,6 +36,7 @@ app.get("/", (_: Request, res: Response) => {
 app.use("/api/tracks", trackRoutes);
 app.use("/api/track-stats", trackStatsRoutes);
 app.use("/api", spotifyRoutes); // single mount point
+app.use("/api/analytics", analyticsRoutes);
 
 app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`);

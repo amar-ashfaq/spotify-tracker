@@ -1,5 +1,15 @@
 import express, { Request, Response } from "express";
 import { getRecentlyPlayed, getTopTracks } from "../services/spotifyService";
+import TrackPlay from "../models/TrackPlay";
+
+type TrackPlay = {
+  trackId: String;
+  trackName: String;
+  artistName: String;
+  albumName: String;
+  playedAt: Date;
+  durationMs: Number;
+};
 
 const app = express.Router();
 
@@ -23,6 +33,22 @@ app.get("/recently-played", async (req: Request, res: Response) => {
 
   try {
     const recentlyPlayedTracks = await getRecentlyPlayed(accessToken, limit);
+
+    // add this to the TrackPlay db
+    await Promise.all(
+      recentlyPlayedTracks.map(async (track: TrackPlay) => {
+        const result = await TrackPlay.updateOne(
+          {
+            trackId: track.trackId,
+            playedAt: track.playedAt,
+          },
+          { $setOnInsert: { ...track, userId: "default" } },
+          { upsert: true }
+        );
+        console.log(`Inserted: ${result.upsertedCount > 0}`);
+      })
+    );
+    // send response after DB insertion
     res.json(recentlyPlayedTracks);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch recently played tracks." });
